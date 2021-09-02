@@ -3,11 +3,11 @@ import matplotlib.pylab as plt
 import pystan
 import corner
 
-def EstimateProfileBayesianPystan(logPrice, V_hat, time, model, exact_param):
+def EstimateProfileBayesianPystan(X, V_hat, time, model, exact_param):
     '''
-    PyStan estimation
+    PyStan estimation of the stochastic volatility model
 
-    logPrice - log of spot price
+    X - observed process
     V_hat - estimated volatility
     time - observed times
     model (string) - SV model
@@ -15,9 +15,10 @@ def EstimateProfileBayesianPystan(logPrice, V_hat, time, model, exact_param):
     '''
 
     dt = np.diff(time)
-    dX = np.diff(logPrice)
+    dX = np.diff(X)
     N = dX.shape[0]
 
+    # variables that appear in each model
     if model == 'Heston':
         dV = np.diff(V_hat)
         int_V = V_hat[:-1] * dt #0.5 * (V_hat[:-1] + V_hat[1:]) * dt # (trapezoidal rule, if desired)
@@ -40,6 +41,7 @@ def EstimateProfileBayesianPystan(logPrice, V_hat, time, model, exact_param):
         int_vol = 0.5 * (vol[:-1] + vol[1:]) * dt
         int_V = 0.5 * (V_hat[:-1] + V_hat[1:]) * dt
 
+    # stan code for the estimation of each model
     if model == 'Heston':
 
         code = """
@@ -178,10 +180,12 @@ def EstimateProfileBayesianPystan(logPrice, V_hat, time, model, exact_param):
                 'int_V': int_V,
                 'sqrt_int_V': np.sqrt(int_V)}
 
+    # stan estimation
     stan_model = pystan.StanModel(model_code=code)
     fit = stan_model.sampling(data=data, iter=1000, chains=4, seed=21) #seed fixed for reproducibility
     result = fit.extract(permuted=True)
 
+    # plot estimation using corner
     plt.figure(figsize=(8.0, 5.0))
     if model in ['Exp-OU', 'GARCH']:
         samples = np.array([result['rho'], result['xi'], result['kappa'], result['m'], result['mu']]).T
@@ -198,5 +202,5 @@ def EstimateProfileBayesianPystan(logPrice, V_hat, time, model, exact_param):
                       truths=[exact_param['rho'][0], exact_param['xi'][0], exact_param['kappa'][0]],
                       quantiles=[0.05, 0.5, 0.95], show_titles=True)
 
-
+    #save figure in Plot/ folder
     plt.savefig('Plot/estimation_bayes_' + model + '.pdf')
