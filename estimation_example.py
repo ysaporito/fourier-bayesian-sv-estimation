@@ -97,4 +97,4 @@ def estimate(real, plot_vol, model, qqplot):
     est.EstimateProfileBayesianPystan(X_real, V_hat, time, model=model, exact_param=param)
 
 if __name__ == '__main__':
-    estimate(real=False, plot_vol=True, model='GARCH', qqplot=False)
+    estimate(real=False, plot_vol=True, model='Heston', qqplot=False)
